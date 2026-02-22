@@ -26,9 +26,7 @@ jobs:
     - name: Check Files and Directory
       shell: cmd
       run: |
-        echo "Listing files in current directory:"
         dir
-        # เปลี่ยนเป็นเช็คไฟล์ sql_monitor.py ตามที่ปรากฏใน Log ของคุณ
         if not exist sql_monitor.py (
             echo ERROR: sql_monitor.py not found!
             exit 1
@@ -36,8 +34,6 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        # เปลี่ยนชื่อไฟล์ต้นทางเป็น sql_monitor.py
-        # --collect-all customtkinter: เพื่อให้หน้าตา UI แสดงผลถูกต้อง
         python -m PyInstaller --onefile --noconsole --collect-all customtkinter --name "SQL_Monitor_Pro" sql_monitor.py
 
     - name: Upload Executable
