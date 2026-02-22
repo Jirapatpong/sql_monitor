@@ -28,15 +28,17 @@ jobs:
       run: |
         echo "Listing files in current directory:"
         dir
-        if not exist app_gui.py (
-            echo ERROR: app_gui.py not found!
+        # เปลี่ยนเป็นเช็คไฟล์ sql_monitor.py ตามที่ปรากฏใน Log ของคุณ
+        if not exist sql_monitor.py (
+            echo ERROR: sql_monitor.py not found!
             exit 1
         )
 
     - name: Build with PyInstaller
       run: |
-        # ใช้ --collect-all customtkinter เพื่อป้องกันปัญหาหา Theme ไม่เจอใน EXE
-        python -m PyInstaller --onefile --noconsole --collect-all customtkinter --name "SQL_Monitor_Pro" app_gui.py
+        # เปลี่ยนชื่อไฟล์ต้นทางเป็น sql_monitor.py
+        # --collect-all customtkinter: เพื่อให้หน้าตา UI แสดงผลถูกต้อง
+        python -m PyInstaller --onefile --noconsole --collect-all customtkinter --name "SQL_Monitor_Pro" sql_monitor.py
 
     - name: Upload Executable
       uses: actions/upload-artifact@v4
