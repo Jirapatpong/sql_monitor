@@ -26,7 +26,9 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --console --name "SQL_Monitor_App" sql_monitor.py
+        # ตรวจสอบว่ามีไฟล์อยู่จริงไหมก่อนเริ่ม Build
+        dir 
+        python -m PyInstaller --onefile --console --name "SQL_Monitor_App" sql_monitor.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
