@@ -1,14 +1,15 @@
-name: Build SQL Monitor EXE
+name: Build SQL Monitor UI EXE
 
 on:
   push:
-    branches: [ "main" ]  # รันเฉพาะเมื่อมีการ Push ไปที่ branch main
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch: # ช่วยให้กดรันเองได้จากหน้า Actions
 
 jobs:
   build:
-    runs-on: windows-latest  # ต้องใช้ Windows เพื่อ Build เป็น .exe ของ Windows
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
@@ -17,21 +18,29 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10' # หรือเวอร์ชันที่คุณใช้งาน
+        python-version: '3.10'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install watchdog pyinstaller
+        # ติดตั้งทุกอย่างที่จำเป็นสำหรับ GUI และ System Tray
+        pip install watchdog customtkinter pystray Pillow pyinstaller
+
+    - name: Verify Files
+      run: |
+        # ตรวจสอบว่ามีไฟล์หลักอยู่ใน Repo หรือไม่
+        dir
+        if (Test-Path "app_gui.py") { echo "Main script found." } else { throw "app_gui.py not found!" }
 
     - name: Build with PyInstaller
       run: |
-        # ตรวจสอบว่ามีไฟล์อยู่จริงไหมก่อนเริ่ม Build
-        dir 
-        python -m PyInstaller --onefile --console --name "SQL_Monitor_App" sql_monitor.py
+        # --onefile: รวมเป็นไฟล์เดียว
+        # --noconsole: ซ่อนหน้าต่าง CMD (เพราะเรามี UI แล้ว)
+        # --collect-all: ช่วยดึงข้อมูลของ customtkinter มาให้ครบถ้วน
+        python -m PyInstaller --onefile --noconsole --name "SQL_Monitor_Pro" app_gui.py
 
-    - name: Upload Artifact
+    - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
-        name: SQL-Monitor-Executable
-        path: dist/SQL_Monitor_App.exe
+        name: SQL-Monitor-Pro-EXE
+        path: dist/SQL_Monitor_Pro.exe
