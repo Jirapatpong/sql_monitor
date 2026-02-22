@@ -30,7 +30,7 @@ jobs:
       run: |
         # ตรวจสอบว่ามีไฟล์หลักอยู่ใน Repo หรือไม่
         dir
-        if (Test-Path "app_gui.py") { echo "Main script found." } else { throw "app_gui.py not found!" }
+        if (Test-Path "app_gui.py") { echo "Main script found." } else { throw "app_gui.py not found! Please check your filename in the repo." }
 
     - name: Build with PyInstaller
       run: |
