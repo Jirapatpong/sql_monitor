@@ -34,6 +34,7 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
+        # --collect-all customtkinter เพื่อให้ดึงไฟล์ Theme และ UI มาครบถ้วน
         python -m PyInstaller --onefile --noconsole --collect-all customtkinter --name "SQL_Monitor_Pro" sql_monitor.py
 
     - name: Upload Executable
