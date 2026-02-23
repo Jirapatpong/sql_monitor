@@ -15,14 +15,14 @@ CONFIG_FILE = "config.json"
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("SQL Monitor Pro - Enterprise Edition")
+        self.title("SQL Monitor Pro - The Mall Project")
         self.geometry("800x800")
         self.protocol('WM_DELETE_WINDOW', self.hide_window)
 
-        # --- Variables (Default values) ---
+        # --- ค่าเริ่มต้นที่รันผ่านจาก CMD ของคุณ ---
         self.config_data = {
             "watch_dir": r"C:\Program Files\ISS3000_MBranchClient\MBranchClient_KA\Archive\SUCCESS",
-            "sql_file": os.path.abspath("STP_FTH_POSAPICenter_UpdateBBYDuringTheDay.sql"),
+            "sql_file": r"D:\FTH\script\update_bby.sql",
             "server": "172.16.26.18",
             "db_name": "POSSDB_KA",
             "user": "sa",
@@ -30,12 +30,13 @@ class App(ctk.CTk):
         }
         self.load_settings()
 
+        # Setup Variables
         self.watch_dir = ctk.StringVar(value=self.config_data["watch_dir"])
         self.sql_file_path = ctk.StringVar(value=self.config_data["sql_file"])
         self.db_server = ctk.StringVar(value=self.config_data["server"])
         self.db_name = ctk.StringVar(value=self.config_data["db_name"])
         self.db_user = ctk.StringVar(value=self.config_data["user"])
-        self.db_pass = ctk.StringVar()
+        self.db_pass = ctk.StringVar(value="Tmg@pos01") # ใส่รหัสผ่านเริ่มต้นให้เลยครับ
         self.auth_mode = ctk.StringVar(value=self.config_data["auth_mode"])
         
         self.observer = None
@@ -44,28 +45,23 @@ class App(ctk.CTk):
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=750, height=550)
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
-        # Paths
         self.create_header(self.scroll_frame, "📁 Path Configuration")
-        self.create_path_selector(self.scroll_frame, "JSON Folder:", self.watch_dir, self.browse_folder)
-        self.create_path_selector(self.scroll_frame, "SQL Script:", self.sql_file_path, self.browse_sql_file)
+        self.create_path_selector(self.scroll_frame, "JSON Monitoring Folder:", self.watch_dir, self.browse_folder)
+        self.create_path_selector(self.scroll_frame, "SQL Script File (.sql):", self.sql_file_path, self.browse_sql_file)
 
-        # Database
         self.create_header(self.scroll_frame, "🖥️ Database Connection")
         self.db_frame = ctk.CTkFrame(self.scroll_frame)
         self.db_frame.pack(pady=5, padx=20, fill="x")
-
         self.create_input(self.db_frame, "Server IP:", self.db_server)
         self.create_input(self.db_frame, "Database:", self.db_name)
         
         self.auth_switch = ctk.CTkSegmentedButton(self.db_frame, values=["Windows", "SQL Server"], 
                                                  variable=self.auth_mode, command=self.toggle_auth)
         self.auth_switch.pack(pady=10)
-
         self.user_entry = self.create_input(self.db_frame, "Username:", self.db_user)
         self.pass_entry = self.create_input(self.db_frame, "Password:", self.db_pass, show="*")
         self.toggle_auth(self.auth_mode.get())
 
-        # Buttons
         btn_row = ctk.CTkFrame(self.db_frame, fg_color="transparent")
         btn_row.pack(pady=15)
         ctk.CTkButton(btn_row, text="Test Connection", fg_color="#17a2b8", command=self.test_connection).pack(side="left", padx=5)
@@ -75,32 +71,9 @@ class App(ctk.CTk):
         self.log_box.pack(pady=10, padx=20)
 
         self.btn_start = ctk.CTkButton(self, text="Start Monitoring", fg_color="#28a745", 
-                                       command=self.toggle_monitoring, height=40, font=("Arial", 14, "bold"))
-        self.btn_start.pack(pady=10)
+                                       command=self.toggle_monitoring, height=45, font=("Arial", 16, "bold"))
+        self.btn_start.pack(pady=15)
 
-    # --- Settings Logic ---
-    def save_settings(self):
-        data = {
-            "watch_dir": self.watch_dir.get(),
-            "sql_file": self.sql_file_path.get(),
-            "server": self.db_server.get(),
-            "db_name": self.db_name.get(),
-            "user": self.db_user.get(),
-            "auth_mode": self.auth_mode.get()
-        }
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(data, f)
-        self.add_log("[SYSTEM] Settings saved to config.json")
-        messagebox.showinfo("Saved", "Configuration saved successfully!")
-
-    def load_settings(self):
-        if os.path.exists(CONFIG_FILE):
-            try:
-                with open(CONFIG_FILE, "r") as f:
-                    self.config_data.update(json.load(f))
-            except: pass
-
-    # --- UI Helpers ---
     def create_header(self, parent, text):
         ctk.CTkLabel(parent, text=text, font=("Arial", 14, "bold"), text_color="orange").pack(anchor="w", padx=25, pady=(15, 5))
 
@@ -126,39 +99,57 @@ class App(ctk.CTk):
         self.user_entry.configure(state=state)
         self.pass_entry.configure(state=state)
 
-    def add_log(self, message):
-        self.log_box.insert("end", f"> {message}\n")
-        self.log_box.see("end")
+    def save_settings(self):
+        data = {
+            "watch_dir": self.watch_dir.get(),
+            "sql_file": self.sql_file_path.get(),
+            "server": self.db_server.get(),
+            "db_name": self.db_name.get(),
+            "user": self.db_user.get(),
+            "auth_mode": self.auth_mode.get()
+        }
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(data, f)
+        self.add_log("[SYSTEM] Settings saved.")
+        messagebox.showinfo("Saved", "Configuration saved!")
 
-    # --- Execution Logic ---
-    def get_sql_cmd(self, extra_args=None):
-        cmd = ["sqlcmd", "-S", self.db_server.get(), "-d", self.db_name.get()]
-        if self.auth_mode.get() == "Windows": cmd.append("-E")
-        else: cmd.extend(["-U", self.db_user.get(), "-P", self.db_pass.get()])
-        if extra_args: cmd.extend(extra_args)
-        return cmd
+    def load_settings(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f:
+                    self.config_data.update(json.load(f))
+            except: pass
 
     def test_connection(self):
         self.add_log("[DB] Testing connection...")
-        cmd = self.get_sql_cmd(["-Q", "SELECT 1"])
-        try:
-            # ใช้ shell=True และรวม stderr เข้ามาเพื่อให้เห็น Error จริง
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
-            self.add_log("[SUCCESS] Connection OK!")
-            messagebox.showinfo("Success", "Connection established!")
-        except subprocess.CalledProcessError as e:
-            msg = e.stdout + e.stderr
-            self.add_log(f"[DB ERROR] {msg.strip()}")
-            messagebox.showerror("Error", f"Failed: {msg.strip()}")
-
-    def run_sql(self, filename):
-        self.add_log(f"[EVENT] New File: {filename}")
-        cmd = self.get_sql_cmd(["-i", self.sql_file_path.get()])
+        cmd = ["sqlcmd", "-S", self.db_server.get(), "-d", self.db_name.get(), "-Q", "SELECT 1"]
+        if self.auth_mode.get() == "Windows": cmd.append("-E")
+        else: cmd.extend(["-U", self.db_user.get(), "-P", self.db_pass.get()])
+        
         try:
             subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
-            self.add_log(f"[SUCCESS] SQL Executed for {filename}")
+            self.add_log("[SUCCESS] Database Connection OK!")
+            messagebox.showinfo("Success", "Connection established!")
+        except Exception as e:
+            self.add_log(f"[ERROR] {str(e)}")
+            messagebox.showerror("Error", "Connection failed!")
+
+    def run_sql(self, filename):
+        self.add_log(f"[EVENT] File detected: {filename}")
+        cmd = ["sqlcmd", "-S", self.db_server.get(), "-d", self.db_name.get()]
+        if self.auth_mode.get() == "Windows": cmd.append("-E")
+        else: cmd.extend(["-U", self.db_user.get(), "-P", self.db_pass.get()])
+        
+        # ใช้พาธไฟล์แบบเต็มที่เลือกไว้
+        cmd.extend(["-i", self.sql_file_path.get()])
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
+            self.add_log(f"[SUCCESS] SQL Script executed for {filename}")
+            # แสดงจำนวน Row ที่ได้รับผลกระทบเหมือนใน CMD
+            if result.stdout:
+                self.add_log(result.stdout.strip())
         except subprocess.CalledProcessError as e:
-            # ดึง Error จริงจาก SQL Server มาแสดง
             self.add_log(f"[SQL ERROR] {e.stdout} {e.stderr}")
 
     def toggle_monitoring(self):
@@ -170,12 +161,20 @@ class App(ctk.CTk):
             if not os.path.exists(self.watch_dir.get()):
                 messagebox.showerror("Error", "Invalid Folder Path")
                 return
+            if not os.path.isfile(self.sql_file_path.get()):
+                messagebox.showerror("Error", "Invalid SQL File Path")
+                return
+            
             event_handler = Handler(self.run_sql)
             self.observer = Observer()
             self.observer.schedule(event_handler, self.watch_dir.get(), recursive=False)
             self.observer.start()
             self.btn_start.configure(text="Stop Monitoring", fg_color="#dc3545")
             self.add_log("[SYSTEM] Monitoring Started...")
+
+    def add_log(self, message):
+        self.log_box.insert("end", f"> {message}\n")
+        self.log_box.see("end")
 
     def hide_window(self):
         self.withdraw()
