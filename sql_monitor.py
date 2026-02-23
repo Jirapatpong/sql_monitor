@@ -13,7 +13,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("SQL Monitor Pro - Enterprise Edition")
-        self.geometry("800x750")
+        self.geometry("800x800")
         self.protocol('WM_DELETE_WINDOW', self.hide_window)
 
         # --- Variables ---
@@ -25,12 +25,12 @@ class App(ctk.CTk):
         self.db_name = ctk.StringVar(value="POSSDB_KA")
         self.db_user = ctk.StringVar(value="sa")
         self.db_pass = ctk.StringVar()
-        self.auth_mode = ctk.StringVar(value="Windows") # Windows or SQL
+        self.auth_mode = ctk.StringVar(value="Windows") 
         
         self.observer = None
 
         # --- UI Setup ---
-        self.scroll_frame = ctk.CTkScrollableFrame(self, width=750, height=500)
+        self.scroll_frame = ctk.CTkScrollableFrame(self, width=750, height=550)
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         self.label = ctk.CTkLabel(self.scroll_frame, text="System Configuration", font=("Arial", 22, "bold"))
@@ -55,9 +55,14 @@ class App(ctk.CTk):
 
         self.user_entry = self.create_input(self.db_frame, "Username:", self.db_user)
         self.pass_entry = self.create_input(self.db_frame, "Password:", self.db_pass, show="*")
-        self.toggle_auth(self.auth_mode.get()) # Init state
+        self.toggle_auth(self.auth_mode.get())
 
-        # Log Box (Fixed at bottom)
+        # Test Connection Button
+        self.btn_test = ctk.CTkButton(self.db_frame, text="Test Connection", fg_color="#17a2b8", 
+                                      command=self.test_connection)
+        self.btn_test.pack(pady=15)
+
+        # Log Box
         self.log_box = ctk.CTkTextbox(self, width=760, height=150)
         self.log_box.pack(pady=10, padx=20)
 
@@ -92,13 +97,25 @@ class App(ctk.CTk):
         self.user_entry.configure(state=state)
         self.pass_entry.configure(state=state)
 
-    def browse_folder(self):
-        selected = filedialog.askdirectory()
-        if selected: self.watch_dir.set(selected)
-
-    def browse_sql_file(self):
-        selected = filedialog.askopenfilename(filetypes=[("SQL files", "*.sql")])
-        if selected: self.sql_file_path.set(selected)
+    def test_connection(self):
+        self.add_log("[DB] Testing connection...")
+        # ใช้คำสั่ง SELECT 1 เพื่อเช็คการเชื่อมต่อเบื้องต้น
+        cmd = ["sqlcmd", "-S", self.db_server.get(), "-d", self.db_name.get(), "-Q", "SELECT 1"]
+        
+        if self.auth_mode.get() == "Windows":
+            cmd.append("-E")
+        else:
+            cmd.extend(["-U", self.db_user.get(), "-P", self.db_pass.get()])
+            
+        try:
+            # ใช้ shell=True เพื่อรองรับการเรียกคำสั่งใน Windows
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
+            self.add_log("[SUCCESS] Database Connection OK!")
+            messagebox.showinfo("Success", "Connection established successfully!")
+        except Exception as e:
+            error_msg = str(e.stderr) if hasattr(e, 'stderr') else str(e)
+            self.add_log(f"[DB ERROR] {error_msg}")
+            messagebox.showerror("Connection Failed", f"Could not connect to database:\n{error_msg}")
 
     def add_log(self, message):
         self.log_box.insert("end", f"> {message}\n")
@@ -132,25 +149,16 @@ class App(ctk.CTk):
 
     def run_sql(self, filename):
         self.add_log(f"[EVENT] New File: {filename}")
-        
-        # Build sqlcmd Command
         cmd = ["sqlcmd", "-S", self.db_server.get(), "-d", self.db_name.get()]
-        
-        if self.auth_mode.get() == "Windows":
-            cmd.append("-E")
-        else:
-            cmd.extend(["-U", self.db_user.get(), "-P", self.db_pass.get()])
-            
+        if self.auth_mode.get() == "Windows": cmd.append("-E")
+        else: cmd.extend(["-U", self.db_user.get(), "-P", self.db_pass.get()])
         cmd.extend(["-i", self.sql_file_path.get()])
         
         try:
-            # ใช้ shell=True เพื่อช่วยแก้ปัญหา WinError 2 ในบางระบบ
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
+            subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
             self.add_log(f"[SUCCESS] SQL Executed for {filename}")
-        except subprocess.CalledProcessError as e:
-            self.add_log(f"[SQL ERROR] {e.stderr}")
         except Exception as e:
-            self.add_log(f"[CRITICAL ERROR] {str(e)}")
+            self.add_log(f"[SQL ERROR] {str(e)}")
 
     def hide_window(self):
         self.withdraw()
@@ -158,6 +166,14 @@ class App(ctk.CTk):
         menu = (item('Show', lambda i, j: self.after(0, self.deiconify) or i.stop()), item('Quit', lambda i, j: self.destroy() or i.stop()))
         icon = pystray.Icon("SQL_Monitor", image, "SQL Monitor", menu)
         threading.Thread(target=icon.run, daemon=True).start()
+
+    def browse_folder(self):
+        selected = filedialog.askdirectory()
+        if selected: self.watch_dir.set(selected)
+
+    def browse_sql_file(self):
+        selected = filedialog.askopenfilename(filetypes=[("SQL files", "*.sql")])
+        if selected: self.sql_file_path.set(selected)
 
 class Handler(FileSystemEventHandler):
     def __init__(self, callback): self.callback = callback
